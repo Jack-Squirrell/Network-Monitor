@@ -1,0 +1,13 @@
+bin/
+obj/
+.vs/
+.vscode/
+*.user
+*.suo
+*.userprefs
+*.db
+appsettings.Development.json
+*.log
+*.pid
+publish/
+node_modules/

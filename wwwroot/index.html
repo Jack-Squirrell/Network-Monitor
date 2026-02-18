@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Network Monitor Dashboard</title>
+<style>
+body { font-family: "Segoe UI", sans-serif; background:#f4f6f8; margin:0; padding:0; }
+header { background:#1e3a8a; color:white; padding:20px; text-align:center; font-size:2rem; box-shadow:0 2px 5px rgba(0,0,0,0.2); }
+main { padding:20px; max-width:900px; margin:auto; }
+.tabs { display:flex; gap:10px; margin-bottom:10px; }
+.tab { padding:10px 20px; background:#3b82f6; color:white; cursor:pointer; border-radius:5px 5px 0 0; }
+.tab.active { background:#1e40af; }
+.tab-content { background:white; padding:15px; border-radius:0 5px 5px 5px; box-shadow:0 2px 8px rgba(0,0,0,0.1); }
+table { width:100%; border-collapse:collapse; margin-top:10px; }
+th, td { padding:12px 15px; text-align:left; }
+th { background:#3b82f6; color:white; }
+tr:nth-child(even) { background:#f3f4f6; }
+tr:hover { background:#e0e7ff; }
+.status-up { color:#16a34a; font-weight:bold; }
+.status-down { color:#dc2626; font-weight:bold; }
+.status-warning { color:#b97300; font-weight:bold; }
+#logContainer { max-height:400px; overflow-y:auto; font-family:monospace; white-space:pre-wrap; }
+.action-cell { width:44px; text-align:center; }
+.delete-btn { background:none; border:0; color:#c53030; cursor:pointer; font-size:18px; line-height:1; padding:4px 6px; opacity:0; transition:opacity .12s ease; }
+tr:hover .delete-btn { opacity:1; }
+</style>
+</head>
+<body>
+
+<header>Network Monitor Dashboard</header>
+<main>
+    <div class="tabs">
+        <div class="tab active" onclick="showTab('status', this)">Status</div>
+        <div class="tab" onclick="showTab('logs', this)">Logs</div>
+        <div class="tab" onclick="showTab('add', this)">Add Target</div>
+    </div>
+
+    <div id="status" class="tab-content">
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Address</th>
+                    <th>Status</th>
+                    <th>Failures</th>
+                    <th>Latency</th>
+                    <th>Last Checked</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="statusTable"></tbody>
+        </table>
+    </div>
+
+    <div id="logs" class="tab-content" style="display:none;">
+        <div id="logContainer">Loading logs...</div>
+    </div>
+
+        <div id="add" class="tab-content" style="display:none;">
+        <h3>Add Monitoring Target</h3>
+        <form id="addForm" onsubmit="event.preventDefault(); submitTarget();">
+            <div style="display:flex;gap:8px;align-items:center;">
+                <input id="targetName" placeholder="Name (optional)" style="flex:1;padding:8px;" />
+                <input id="targetAddress" placeholder="IP or hostname" style="flex:1;padding:8px;" required />
+                <button type="submit" style="padding:8px 12px;">Add</button>
+            </div>
+        </form>
+        <div id="addResult" style="margin-top:8px;color:#333;">&nbsp;</div>
+    </div>
+</main>
+
+<script>
+function showTab(name, el) {
+    document.getElementById('status').style.display = name === 'status' ? 'block' : 'none';
+    document.getElementById('logs').style.display = name === 'logs' ? 'block' : 'none';
+    document.getElementById('add').style.display = name === 'add' ? 'block' : 'none';
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    if (el) el.classList.add('active');
+}
+
+async function loadStatus() {
+    try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+        const table = document.getElementById('statusTable');
+        table.innerHTML = '';
+            data.forEach(host => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${host.name || ''}</td>
+                <td>${host.address || ''}</td>
+                    <td class="${host.isUp ? 'status-up' : (host.severity === 'Critical' ? 'status-down' : 'status-warning')}">${host.isUp ? 'UP' : (host.severity === 'Critical' ? 'CRITICAL' : (host.severity === 'Warning' ? 'WARNING' : 'DOWN'))}</td>
+                    <td>${host.failureCount ?? 0}</td>
+                    <td>${host.latency >= 0 ? host.latency + ' ms' : 'N/A'}</td>
+                    <td>${new Date(host.lastChecked).toLocaleTimeString()}</td>
+                    <td class="action-cell"><button class="delete-btn" onclick="deleteTarget('${host.address}', this)">×</button></td>
+            `;
+            table.appendChild(row);
+        });
+    } catch(e){console.error(e);}
+}
+
+async function loadLogs() {
+    try {
+        const res = await fetch('/api/logs');
+        const logs = await res.json();
+        document.getElementById('logContainer').textContent = logs.join("\n") || "No errors";
+    } catch(e){console.error(e);}
+}
+
+// Refresh every 3 seconds
+setInterval(loadStatus, 3000);
+setInterval(loadLogs, 3000);
+window.onload = ()=>{loadStatus(); loadLogs();}
+
+async function submitTarget() {
+    const name = document.getElementById('targetName').value.trim();
+    const address = document.getElementById('targetAddress').value.trim();
+    const result = document.getElementById('addResult');
+    if (!address) { result.textContent = 'Address is required'; return; }
+    try {
+        const res = await fetch('/api/targets', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: name, address: address })
+        });
+        if (res.status === 201) {
+            result.style.color = 'green';
+            result.textContent = 'Target added';
+            document.getElementById('addForm').reset();
+            loadStatus();
+        } else if (res.status === 409) {
+            result.style.color = 'orange';
+            result.textContent = 'Target already exists';
+        } else {
+            const txt = await res.text();
+            result.style.color = 'red';
+            result.textContent = 'Error: ' + txt;
+        }
+    } catch (e) {
+        result.style.color = 'red';
+        result.textContent = 'Error: ' + e.message;
+    }
+}
+
+// loadTargets removed - add-tab no longer shows removable list
+
+async function deleteTarget(address, btn) {
+    try {
+        btn.disabled = true;
+        const res = await fetch('/api/targets/' + encodeURIComponent(address), { method: 'DELETE' });
+        if (res.ok) {
+            await loadStatus();
+        } else {
+            const txt = await res.text();
+            alert('Failed to remove: ' + txt);
+        }
+    } catch (e) {
+        alert('Error: ' + e.message);
+    } finally { btn.disabled = false; }
+}
+</script>
+
+</body>
+</html>
