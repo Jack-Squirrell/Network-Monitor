@@ -1,4 +1,10 @@
 <!DOCTYPE html>
+<!--
+    Network Monitor Dashboard
+    - Status tab shows monitored hosts, current status, failures and latency.
+    - Logs tab shows recent error/warning messages.
+    - Add Target tab allows adding targets (removal is done via the red × on Status rows).
+-->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -28,6 +34,11 @@ tr:hover .delete-btn { opacity:1; }
 <body>
 
 <header>Network Monitor Dashboard</header>
+<div style="max-width:900px;margin:auto;text-align:right;padding:6px 20px;">
+    <input id="apiKeyInput" placeholder="API Key (optional)" style="padding:6px;width:220px;" />
+    <button onclick="saveApiKey()" style="padding:6px 8px;margin-left:6px;">Set Key</button>
+    <button onclick="clearApiKey()" style="padding:6px 8px;margin-left:6px;">Clear</button>
+</div>
 <main>
     <div class="tabs">
         <div class="tab active" onclick="showTab('status', this)">Status</div>
@@ -80,7 +91,7 @@ function showTab(name, el) {
 
 async function loadStatus() {
     try {
-        const res = await fetch('/api/status');
+        const res = await fetchWithKey('/api/status');
         const data = await res.json();
         const table = document.getElementById('statusTable');
         table.innerHTML = '';
@@ -102,7 +113,7 @@ async function loadStatus() {
 
 async function loadLogs() {
     try {
-        const res = await fetch('/api/logs');
+        const res = await fetchWithKey('/api/logs');
         const logs = await res.json();
         document.getElementById('logContainer').textContent = logs.join("\n") || "No errors";
     } catch(e){console.error(e);}
@@ -119,7 +130,7 @@ async function submitTarget() {
     const result = document.getElementById('addResult');
     if (!address) { result.textContent = 'Address is required'; return; }
     try {
-        const res = await fetch('/api/targets', {
+        const res = await fetchWithKey('/api/targets', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name: name, address: address })
@@ -148,7 +159,7 @@ async function submitTarget() {
 async function deleteTarget(address, btn) {
     try {
         btn.disabled = true;
-        const res = await fetch('/api/targets/' + encodeURIComponent(address), { method: 'DELETE' });
+        const res = await fetchWithKey('/api/targets/' + encodeURIComponent(address), { method: 'DELETE' });
         if (res.ok) {
             await loadStatus();
         } else {
@@ -159,6 +170,38 @@ async function deleteTarget(address, btn) {
         alert('Error: ' + e.message);
     } finally { btn.disabled = false; }
 }
+
+// Helper to include API key header when present in sessionStorage
+async function fetchWithKey(url, opts) {
+    opts = opts || {};
+    opts.headers = opts.headers || {};
+    const key = sessionStorage.getItem('apiKey');
+    if (key) {
+        // If headers is a Headers instance convert to object
+        if (opts.headers instanceof Headers) opts.headers.set('X-Api-Key', key);
+        else opts.headers['X-Api-Key'] = key;
+    }
+    return fetch(url, opts);
+}
+
+function saveApiKey() {
+    const v = document.getElementById('apiKeyInput').value.trim();
+    if (v) sessionStorage.setItem('apiKey', v);
+    else sessionStorage.removeItem('apiKey');
+    alert('API key saved to session (not persisted).');
+}
+
+function clearApiKey() {
+    sessionStorage.removeItem('apiKey');
+    document.getElementById('apiKeyInput').value = '';
+    alert('API key cleared from session.');
+}
+
+// Populate input with saved key if present
+window.addEventListener('load', () => {
+    const saved = sessionStorage.getItem('apiKey');
+    if (saved) document.getElementById('apiKeyInput').value = saved;
+});
 </script>
 
 </body>

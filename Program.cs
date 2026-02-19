@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Hosting.WindowsServices;
 
 // Create builder
+// The WebApplication builder configures DI, logging and Kestrel.
 var builder = WebApplication.CreateBuilder(args);
 
 if (OperatingSystem.IsWindows() && !Environment.UserInteractive)
@@ -11,13 +12,21 @@ if (OperatingSystem.IsWindows() && !Environment.UserInteractive)
     builder.Host.UseWindowsService();
 }
 
-// Register singletons
+// Register singletons used across the app. These are in-memory
+// stores and a simple hosted worker service.
 builder.Services.AddSingleton<StatusStore>();
 builder.Services.AddSingleton<LogStore>();
-// Register target store (loads initial targets from config)
+// TargetStore loads configured targets at startup and allows runtime adds/removes
 builder.Services.AddSingleton<TargetStore>();
 
-// Register Worker as hosted service (DI injects logger, StatusStore, LogStore, TargetStore)
+// Configure System.Text.Json source-generation context for minimal API
+builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(opts =>
+{
+    opts.SerializerOptions.TypeInfoResolver = JsonContext.Default;
+});
+
+// Register the long-running background worker that will perform pings.
+// The worker receives the DI services above to perform its work.
 builder.Services.AddHostedService<Worker>();
 
 // Make LocalHost
@@ -26,7 +35,38 @@ builder.WebHost.UseUrls("http://127.0.0.1:8080");
 
 var app = builder.Build();
 
-// Status API
+// API key enforcement middleware:
+// If an ApiKey is configured (via environment or configuration), all
+// requests under /api will require the header 'X-Api-Key' with that value.
+// When no ApiKey is configured the middleware is permissive (convenient for local dev).
+var configuredApiKey = builder.Configuration["ApiKey"];
+app.Use(async (ctx, next) =>
+{
+    if (ctx.Request.Path.StartsWithSegments("/api"))
+    {
+        if (string.IsNullOrEmpty(configuredApiKey))
+        {
+            await next();
+            return;
+        }
+
+        if (!ctx.Request.Headers.TryGetValue("X-Api-Key", out var provided) || provided != configuredApiKey)
+        {
+            ctx.Response.StatusCode = 401;
+            await ctx.Response.WriteAsync("Unauthorized");
+            return;
+        }
+    }
+
+    await next();
+});
+
+// --- Minimal APIs (JSON endpoints) ---
+// These endpoints return simple POCOs; we've wired a source-generated
+// JsonContext to the serializer so the compiled release can safely
+// serialize these types even when trimmed.
+
+// Status API: returns current status entries
 app.MapGet("/api/status", (StatusStore store) => store.GetAll());
 
 // Targets API

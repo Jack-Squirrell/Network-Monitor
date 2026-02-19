@@ -1,12 +1,21 @@
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Configuration;
 
+/// <summary>
+/// Thread-safe in-memory store for monitoring status of hosts.
+/// Keeps the latest HostStatus for each target address and exposes
+/// helper methods for updating and removing entries.
+/// </summary>
 public class StatusStore
 {
+    // Keyed by address
     private readonly ConcurrentDictionary<string, HostStatus> _statuses = new();
     private readonly int _warningThreshold;
     private readonly int _criticalThreshold;
 
+    /// <summary>
+    /// Reads thresholds from configuration and initializes the store.
+    /// </summary>
     public StatusStore(IConfiguration configuration)
     {
         _warningThreshold = configuration.GetValue<int>("Monitoring:WarningThreshold", 1);
@@ -15,7 +24,14 @@ public class StatusStore
         if (_criticalThreshold < _warningThreshold) _criticalThreshold = _warningThreshold;
     }
 
-    // Set updates the status and failure count. Returns the updated status and the previous severity.
+    /// <summary>
+    /// Update or create the status entry for <paramref name="address"/>.
+    /// This method increments the failure counter when the host is down,
+    /// and resets it to zero when the host responds. It also computes the
+    /// resulting severity (OK/Warning/Critical) based on configured thresholds.
+    /// Returns the updated HostStatus and the prior severity so callers
+    /// can detect transitions.
+    /// </summary>
     public (HostStatus status, string previousSeverity) Set(string address, string? name, bool isUp, long latency)
     {
         var now = DateTime.UtcNow;
@@ -63,6 +79,9 @@ public class StatusStore
         return (result, previousSeverity);
     }
 
+    /// <summary>
+    /// Compute severity label from a failure count using thresholds.
+    /// </summary>
     private string ComputeSeverity(int failures)
     {
         if (failures <= 0) return "OK";
@@ -71,8 +90,15 @@ public class StatusStore
         return "OK";
     }
 
+    /// <summary>
+    /// Returns a snapshot enumeration of current HostStatus values.
+    /// </summary>
     public IEnumerable<HostStatus> GetAll() => _statuses.Values;
 
+    /// <summary>
+    /// Remove the status entry for the given address.
+    /// Returns true if an entry was removed.
+    /// </summary>
     public bool Remove(string address)
     {
         if (string.IsNullOrWhiteSpace(address)) return false;
@@ -80,13 +106,23 @@ public class StatusStore
     }
 }
 
+/// <summary>
+/// Represents the most recent observed status for a single host.
+/// </summary>
 public class HostStatus
 {
+    /// <summary>IP address or hostname being monitored (key).</summary>
     public string Address { get; set; } = "";
+    /// <summary>Optional human-friendly name for the host.</summary>
     public string Name { get; set; } = "";
+    /// <summary>Whether the last check reported the host as reachable.</summary>
     public bool IsUp { get; set; }
+    /// <summary>Number of consecutive failed checks (resets on success).</summary>
     public int FailureCount { get; set; }
+    /// <summary>Severity derived from failure count: OK/Warning/Critical.</summary>
     public string Severity { get; set; } = "OK";
+    /// <summary>Last observed round-trip latency in milliseconds (-1 when unavailable).</summary>
     public long Latency { get; set; }
+    /// <summary>UTC timestamp of the last check.</summary>
     public DateTime LastChecked { get; set; }
 }

@@ -5,6 +5,11 @@ using System.Net.NetworkInformation;
 using System.Collections.Concurrent;
 using System.Linq;
 
+/// <summary>
+/// Background service that periodically pings the configured targets.
+/// It queries the runtime `TargetStore` for targets, performs concurrent
+/// ping checks, and writes results into the `StatusStore` and `LogStore`.
+/// </summary>
 public class Worker : BackgroundService
 {
     private readonly ILogger<Worker> _logger;
@@ -14,6 +19,14 @@ public class Worker : BackgroundService
     private readonly int _intervalSeconds;
     private readonly TargetStore _targetStore;
 
+    /// <summary>
+    /// Constructs the Worker.
+    /// </summary>
+    /// <param name="logger">Logger for informational/warning/critical messages.</param>
+    /// <param name="statusStore">StatusStore to persist host statuses.</param>
+    /// <param name="logStore">LogStore to persist recent log messages.</param>
+    /// <param name="targetStore">TargetStore providing the list of targets to monitor.</param>
+    /// <param name="configuration">Configuration (used to read interval).</param>
     public Worker(ILogger<Worker> logger, StatusStore statusStore, LogStore logStore, TargetStore targetStore, IConfiguration configuration)
     {
         _logger = logger;
@@ -23,6 +36,10 @@ public class Worker : BackgroundService
         _intervalSeconds = configuration.GetValue<int>("Monitoring:IntervalSeconds", 60);
     }
 
+    /// <summary>
+    /// Main background loop. Kicks off checks for all targets in parallel
+    /// then waits for the configured interval before repeating.
+    /// </summary>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation("Network Monitor Service started.");
@@ -35,6 +52,13 @@ public class Worker : BackgroundService
         }
     }
 
+    /// <summary>
+    /// Checks a single host by performing a ping and updating the
+    /// <see cref="StatusStore"/> with the results. Emits logs on severity
+    /// transitions (Warning/Critical) and on recovery.
+    /// </summary>
+    /// <param name="target">The target to ping.</param>
+    /// <param name="token">Cancellation token for cooperative shutdown.</param>
     private async Task CheckHostAsync(MonitoringTarget target, CancellationToken token)
     {
         try
