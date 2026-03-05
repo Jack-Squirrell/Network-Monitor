@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using Microsoft.Extensions.Configuration;
 
 /// <summary>
 /// Thread-safe in-memory store for monitoring status of hosts.

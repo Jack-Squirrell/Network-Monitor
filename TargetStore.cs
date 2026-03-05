@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using Microsoft.Extensions.Configuration;
 
 /// <summary>
 /// Holds the set of monitoring targets for the running application.

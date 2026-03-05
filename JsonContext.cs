@@ -1,5 +1,4 @@
 using System.Text.Json.Serialization;
-using System.Collections.Generic;
 
 /// <summary>
 /// Source-generation context for System.Text.Json. When publishing

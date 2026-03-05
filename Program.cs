@@ -1,8 +1,3 @@
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.Hosting.WindowsServices;
-
 // Create builder
 // The WebApplication builder configures DI, logging and Kestrel.
 var builder = WebApplication.CreateBuilder(args);

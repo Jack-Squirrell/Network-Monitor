@@ -1,10 +1,3 @@
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Configuration;
-using System.Net.NetworkInformation;
-using System.Collections.Concurrent;
-using System.Linq;
-
 /// <summary>
 /// Background service that periodically pings the configured targets.
 /// It queries the runtime `TargetStore` for targets, performs concurrent
