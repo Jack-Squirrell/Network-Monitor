@@ -10,25 +10,89 @@
 <meta charset="UTF-8">
 <title>Network Monitor Dashboard</title>
 <style>
-body { font-family: "Segoe UI", sans-serif; background:#f4f6f8; margin:0; padding:0; }
-header { background:#1e3a8a; color:white; padding:20px; text-align:center; font-size:2rem; box-shadow:0 2px 5px rgba(0,0,0,0.2); }
-main { padding:20px; max-width:900px; margin:auto; }
-.tabs { display:flex; gap:10px; margin-bottom:10px; }
-.tab { padding:10px 20px; background:#3b82f6; color:white; cursor:pointer; border-radius:5px 5px 0 0; }
-.tab.active { background:#1e40af; }
-.tab-content { background:white; padding:15px; border-radius:0 5px 5px 5px; box-shadow:0 2px 8px rgba(0,0,0,0.1); }
-table { width:100%; border-collapse:collapse; margin-top:10px; }
-th, td { padding:12px 15px; text-align:left; }
-th { background:#3b82f6; color:white; }
-tr:nth-child(even) { background:#f3f4f6; }
-tr:hover { background:#e0e7ff; }
-.status-up { color:#16a34a; font-weight:bold; }
-.status-down { color:#dc2626; font-weight:bold; }
-.status-warning { color:#b97300; font-weight:bold; }
-#logContainer { max-height:400px; overflow-y:auto; font-family:monospace; white-space:pre-wrap; }
-.action-cell { width:44px; text-align:center; }
-.delete-btn { background:none; border:0; color:#c53030; cursor:pointer; font-size:18px; line-height:1; padding:4px 6px; opacity:0; transition:opacity .12s ease; }
-tr:hover .delete-btn { opacity:1; }
+/* simplified, minimal styling */
+body {
+    font-family: system-ui, sans-serif;
+    margin: 0;
+    padding: 0;
+    background: white;
+    color: #000;
+}
+header {
+    padding: 10px;
+    text-align: center;
+    font-weight: bold;
+    font-size: 1.5rem;
+    border-bottom: 1px solid #ccc;
+}
+main {
+    padding: 10px;
+    max-width: 900px;
+    margin: auto;
+}
+.tabs {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 10px;
+}
+.tab {
+    padding: 8px;
+    cursor: pointer;
+    border: 1px solid #ccc;
+    background: #e0e0e0;
+    border-radius: 3px 3px 0 0;
+}
+.tab.active {
+    background: #fff;
+    border-bottom: 1px solid #fff;
+}
+.tab-content {
+    border: 1px solid #ccc;
+    padding: 10px;
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+th,
+td {
+    padding: 8px;
+    border: 1px solid #ccc;
+    text-align: left;
+}
+tr:nth-child(even) {
+    background: #f9f9f9;
+}
+.status-up { color: green; }
+.status-down { color: red; }
+.status-warning { color: orange; }
+#logContainer {
+    max-height: 400px;
+    overflow-y: auto;
+    font-family: monospace;
+    white-space: pre-wrap;
+}
+.delete-btn {
+    font-size: 16px;
+    color: red;
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+form input {
+    padding: 4px;
+    margin-right: 4px;
+}
+.form-row input {
+    flex: 1;
+}
+form button {
+    padding: 4px 8px;
+}
+
+.hidden { display: none; }
+.form-row { display: flex; gap: 8px; align-items: center; }
+.result { margin-top: 8px; color: #333; }
 </style>
 </head>
 <body>
@@ -59,28 +123,32 @@ tr:hover .delete-btn { opacity:1; }
         </table>
     </div>
 
-    <div id="logs" class="tab-content" style="display:none;">
+    <div id="logs" class="tab-content hidden">
         <div id="logContainer">Loading logs...</div>
     </div>
 
-        <div id="add" class="tab-content" style="display:none;">
+    <div id="add" class="tab-content hidden">
         <h3>Add Monitoring Target</h3>
         <form id="addForm" onsubmit="event.preventDefault(); submitTarget();">
-            <div style="display:flex;gap:8px;align-items:center;">
-                <input id="targetName" placeholder="Name (optional)" style="flex:1;padding:8px;" />
-                <input id="targetAddress" placeholder="IP or hostname" style="flex:1;padding:8px;" required />
-                <button type="submit" style="padding:8px 12px;">Add</button>
+            <div class="form-row">
+                <input id="targetName" placeholder="Name (optional)" />
+                <input id="targetAddress" placeholder="IP or hostname" required />
+                <button type="submit">Add</button>
             </div>
         </form>
-        <div id="addResult" style="margin-top:8px;color:#333;">&nbsp;</div>
+        <div id="addResult" class="result">&nbsp;</div>
     </div>
 </main>
 
 <script>
 function showTab(name, el) {
-    document.getElementById('status').style.display = name === 'status' ? 'block' : 'none';
-    document.getElementById('logs').style.display = name === 'logs' ? 'block' : 'none';
-    document.getElementById('add').style.display = name === 'add' ? 'block' : 'none';
+    ['status','logs','add'].forEach(id => {
+        const elNode = document.getElementById(id);
+        if (elNode) {
+            if (id === name) elNode.classList.remove('hidden');
+            else elNode.classList.add('hidden');
+        }
+    });
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     if (el) el.classList.add('active');
 }
