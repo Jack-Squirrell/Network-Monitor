@@ -35,31 +35,7 @@ builder.WebHost.UseUrls("http://127.0.0.1:8080");
 
 var app = builder.Build();
 
-// API key enforcement middleware:
-// If an ApiKey is configured (via environment or configuration), all
-// requests under /api will require the header 'X-Api-Key' with that value.
-// When no ApiKey is configured the middleware is permissive (convenient for local dev).
-var configuredApiKey = builder.Configuration["ApiKey"];
-app.Use(async (ctx, next) =>
-{
-    if (ctx.Request.Path.StartsWithSegments("/api"))
-    {
-        if (string.IsNullOrEmpty(configuredApiKey))
-        {
-            await next();
-            return;
-        }
 
-        if (!ctx.Request.Headers.TryGetValue("X-Api-Key", out var provided) || provided != configuredApiKey)
-        {
-            ctx.Response.StatusCode = 401;
-            await ctx.Response.WriteAsync("Unauthorized");
-            return;
-        }
-    }
-
-    await next();
-});
 
 // --- Minimal APIs (JSON endpoints) ---
 // These endpoints return simple POCOs; we've wired a source-generated

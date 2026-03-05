@@ -11,7 +11,7 @@ APIs for status, logs and target management.
 - Runtime add/remove of targets with atomic persistence into
   `appsettings.json`.
 - Minimal API + single-file UI served from `wwwroot`.
-- Optional API protection via an API key (`X-Api-Key`).
+- API endpoints are open (no authentication).
 
 **Prerequisites**
 - .NET 8 SDK (or compatible runtime)
@@ -55,22 +55,12 @@ Edit `appsettings.json` to configure monitoring, interval and thresholds. Exampl
 - `POST /api/targets` — add a target (JSON: `{ "name":"x","address":"a.b.c.d" }`).
 - `DELETE /api/targets/{address}` — remove a target by address.
 
-When an API key is configured (see Security) all `/api/*` endpoints require an
-`X-Api-Key` header.
+
 
 **Security**
-- API Key: set environment variable `ApiKey` to enable the server-side check:
-
-```powershell
-$env:ApiKey = 'your-secret-key'
-dotnet run --configuration Release
-```
-
-- The dashboard includes a short input to paste the API key. The value is
-  stored only in the browser `sessionStorage` and is not persisted by the
-  service. For production, prefer a secrets manager or platform-specific
-  secret injection (systemd, Windows service secrets store, or container
-  secrets).
+- This service does not enforce any authentication by default. If you need
+  to restrict access consider running behind a firewall, VPN, or proxy that
+  provides authentication/authorization.
 
 **Troubleshooting**
 - If `appsettings.json` cannot be written at runtime the service will be able

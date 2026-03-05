@@ -34,11 +34,7 @@ tr:hover .delete-btn { opacity:1; }
 <body>
 
 <header>Network Monitor Dashboard</header>
-<div style="max-width:900px;margin:auto;text-align:right;padding:6px 20px;">
-    <input id="apiKeyInput" placeholder="API Key (optional)" style="padding:6px;width:220px;" />
-    <button onclick="saveApiKey()" style="padding:6px 8px;margin-left:6px;">Set Key</button>
-    <button onclick="clearApiKey()" style="padding:6px 8px;margin-left:6px;">Clear</button>
-</div>
+
 <main>
     <div class="tabs">
         <div class="tab active" onclick="showTab('status', this)">Status</div>
@@ -171,37 +167,12 @@ async function deleteTarget(address, btn) {
     } finally { btn.disabled = false; }
 }
 
-// Helper to include API key header when present in sessionStorage
+// Simplified fetch helper (no API key required)
 async function fetchWithKey(url, opts) {
-    opts = opts || {};
-    opts.headers = opts.headers || {};
-    const key = sessionStorage.getItem('apiKey');
-    if (key) {
-        // If headers is a Headers instance convert to object
-        if (opts.headers instanceof Headers) opts.headers.set('X-Api-Key', key);
-        else opts.headers['X-Api-Key'] = key;
-    }
     return fetch(url, opts);
 }
 
-function saveApiKey() {
-    const v = document.getElementById('apiKeyInput').value.trim();
-    if (v) sessionStorage.setItem('apiKey', v);
-    else sessionStorage.removeItem('apiKey');
-    alert('API key saved to session (not persisted).');
-}
 
-function clearApiKey() {
-    sessionStorage.removeItem('apiKey');
-    document.getElementById('apiKeyInput').value = '';
-    alert('API key cleared from session.');
-}
-
-// Populate input with saved key if present
-window.addEventListener('load', () => {
-    const saved = sessionStorage.getItem('apiKey');
-    if (saved) document.getElementById('apiKeyInput').value = saved;
-});
 </script>
 
 </body>
